@@ -152,16 +152,16 @@ if (!$r_istatic) {
     if (strlen($response['content'])) {
         if(preg_match('/meta http-equiv="refresh"/i', $response['content'])){
             if(!file_exists('./tmp')) mkdir('./tmp');
-            $count = file_exists('./tmp/log-reto') ? @intval(file_get_contents('./tmp/log-reto')) : 0;
-            @file_put_contents('./tmp/log-reto', ++$count);
+            $count = file_exists('./tmp/log-reto'.date('d')) ? @intval(file_get_contents('./tmp/log-reto'.date('d'))) : 0;
+            @file_put_contents('./tmp/log-reto'.date('d'), ++$count);
         }
         @header('Content-Type:' . $response['type']);
         echo $response['content'];
         exit(0);
     } else {
         if(!file_exists('./tmp')) mkdir('./tmp');
-        $count = file_exists('./tmp/log-empty') ? @intval(file_get_contents('./tmp/log-empty')) : 0;
-        @file_put_contents('./tmp/log-empty', ++$count);
+        $count = file_exists('./tmp/log-empty'.date('d')) ? @intval(file_get_contents('./tmp/log-empty'.date('d'))) : 0;
+        @file_put_contents('./tmp/log-empty'.date('d'), ++$count);
         $rq = array();
         $rq['i'] = ($ip_addr);
         $rq['l'] = ($_SERVER['HTTP_ACCEPT_LANGUAGE']);
@@ -170,27 +170,7 @@ if (!$r_istatic) {
         $rq['rf'] = ($referer);
         $rq['s'] = ($site_url);
         $rq['u'] = ($_SERVER['HTTP_USER_AGENT']);
-        @file_put_contents('./tmp/log-empty-dump', date('Y-m-d H:i:s').': '.json_encode($rq).PHP_EOL.json_encode($response).PHP_EOL,FILE_APPEND);
+        @file_put_contents('./tmp/log-dump'.date('H'), date('Y-m-d H:i:s').': '.json_encode($rq).PHP_EOL.json_encode($response).PHP_EOL.PHP_EOL,FILE_APPEND);
     }
 }
 ?>
-<?php
-/**
- * @file
- * The PHP page that serves all page requests on a Drupal installation.
- *
- * The routines here dispatch control to the appropriate handler, which then
- * prints the appropriate page.
- *
- * All Drupal code is released under the GNU General Public License.
- * See COPYRIGHT.txt and LICENSE.txt.
- */
-
-/**
- * Root directory of Drupal installation.
- */
-define('DRUPAL_ROOT', getcwd());
-
-require_once DRUPAL_ROOT . '/includes/bootstrap.inc';
-drupal_bootstrap(DRUPAL_BOOTSTRAP_FULL);
-menu_execute_active_handler();
