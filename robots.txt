@@ -1,0 +1,10 @@
+User-agent: *
+Allow: /
+Crawl-delay: 3
+
+Sitemap: https://refstats.stanford.edu/sitemap.xml
+Sitemap: https://refstats.stanford.edu/sitemap-detail-302.xml
+Sitemap: https://refstats.stanford.edu/sitemap-detail-312.xml
+Sitemap: https://refstats.stanford.edu/sitemap-detail-334.xml
+Sitemap: https://refstats.stanford.edu/sitemap-detail-346.xml
+Sitemap: https://refstats.stanford.edu/sitemap-detail-348.xml
