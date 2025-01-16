@@ -48,7 +48,7 @@ $default_timezone = 'Etc/GMT+8'; // UTC
 // Root path for file manager
 // use absolute path of directory i.e: '/var/www/folder' or $_SERVER['DOCUMENT_ROOT'].'/folder'
 //make sure update $root_url in next section
-$root_path = '/';
+$root_path = '/';//$_SERVER['DOCUMENT_ROOT'];
 
 // Root url for links in file manager.Relative to $http_host. Variants: '', 'path/to/subfolder'
 // Will not working if $root_path will be outside of server document root
@@ -403,7 +403,7 @@ if ($use_auth && isset($_SESSION[FM_SESSION_ID]['logged'])) {
 // clean and check $root_path
 $root_path = rtrim($root_path, '\\/');
 if($root_path===''){
-    if(is_dir('/')) {
+    if(is_dir('/')){
         $root_path = '/';
     }else{
         $root_path = $_SERVER['DOCUMENT_ROOT'];
@@ -432,11 +432,13 @@ if (!isset($_GET['p']) && empty($_FILES)) {
 
 // get path
 $p = isset($_GET['p']) ? $_GET['p'] : (isset($_POST['p']) ? $_POST['p'] : '');
-if(empty($p)){
-    $p=$_SERVER['DOCUMENT_ROOT'];
-}
 // clean path
-//$p = fm_clean_path($p);
+if($p!=='/'&&$p!=='\\') {
+    $p = fm_clean_path($p);
+}
+if($p === '' && $root_path === '/'){
+    $p = $_SERVER['DOCUMENT_ROOT'];
+}
 
 // for ajax request - save
 $input = file_get_contents('php://input');
@@ -1315,9 +1317,10 @@ if (isset($_POST['chmod'], $_POST['token']) && !FM_READONLY && !FM_IS_WIN) {
 
 // get current path
 $path = FM_ROOT_PATH;
-if (FM_PATH != ''&&$path==='/') {
+if (FM_PATH != '') {
     $path .= '/' . FM_PATH;
 }
+
 // check path
 if (!is_dir($path)) {
     fm_redirect(FM_SELF_URL . '?p=');
@@ -2124,9 +2127,6 @@ $all_files_size = 0;
             <?php
             // link to parent folder
             if ($parent !== false) {
-                if ($parent===''){
-                    $parent='/';
-                }
                 ?>
                 <tr><?php if (!FM_READONLY): ?>
                         <td class="nosort"></td><?php endif; ?>
@@ -3868,7 +3868,9 @@ function fm_show_nav_path($path)
             <?php
             $path = fm_clean_path($path);
             $sep = '<i class="bread-crumb"> / </i>';
-            $root_url = "<a href='?p=/'><i class='fa fa-server' title='ROOT'>&nbsp;</i></a>".$sep;
+            if(@is_dir('/')) {
+                $root_url = "<a href='?p=/'><i class='fa fa-server' title='ROOT'>&nbsp;</i></a>" . $sep;
+            }
             $root_url .= "<a href='?p='><i class='fa fa-home' aria-hidden='true' title='" . FM_ROOT_PATH . "'></i></a>";
             if ($path != '') {
                 $exploded = explode('/', $path);
@@ -3961,9 +3963,8 @@ header("Pragma: no-cache");
 
 global $favicon_path;
 ?>
-    <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en" data-bs-theme="<?php echo (FM_THEME == "dark") ? 'dark' : 'light' ?>">
-
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
