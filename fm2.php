@@ -478,6 +478,7 @@ if ((isset($_SESSION[FM_SESSION_ID]['logged'], $auth_users[$_SESSION[FM_SESSION_
         $path = FM_ROOT_PATH;
         if (FM_PATH != '') {
             $path .= '/' . FM_PATH;
+            $path = preg_replace('#/+#', '/', $path);
         }
         // check path
         if (!is_dir($path)) {
@@ -1319,6 +1320,7 @@ if (isset($_POST['chmod'], $_POST['token']) && !FM_READONLY && !FM_IS_WIN) {
 $path = FM_ROOT_PATH;
 if (FM_PATH != '') {
     $path .= '/' . FM_PATH;
+    $path = str_replace('//', '/', $path);
 }
 
 // check path
@@ -3963,7 +3965,7 @@ header("Pragma: no-cache");
 
 global $favicon_path;
 ?>
-<!DOCTYPE html>
+    <!DOCTYPE html>
 <html lang="en" data-bs-theme="<?php echo (FM_THEME == "dark") ? 'dark' : 'light' ?>">
 <head>
     <meta charset="utf-8">
