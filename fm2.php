@@ -478,7 +478,7 @@ if ((isset($_SESSION[FM_SESSION_ID]['logged'], $auth_users[$_SESSION[FM_SESSION_
         $path = FM_ROOT_PATH;
         if (FM_PATH != '') {
             $path .= '/' . FM_PATH;
-            $path = preg_replace('#/+#', '/', $path);
+            $path = str_replace('//', '/', $path);
         }
         // check path
         if (!is_dir($path)) {
